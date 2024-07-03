@@ -6,8 +6,8 @@ async function VehicleLocation(req, res) {
   try {
     const location = await prisma.vehicleLocation.create({
       data: {
-        latitude: lat,
-        longitude: lng,
+        latitude: parseFloat(lat),
+        longitude: parseFloat(lng),
       },
     });
     console.log(location);
