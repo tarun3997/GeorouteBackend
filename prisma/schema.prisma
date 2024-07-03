@@ -9,7 +9,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -35,7 +35,7 @@ model VehicleDriver {
 model VehicleLocation {
   id        String   @id @default(uuid())
   latitude  Float
-  longitude Float 
+  longitude Float
   time      DateTime @default(now())
 }
 
