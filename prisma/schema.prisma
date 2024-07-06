@@ -14,28 +14,32 @@ datasource db {
 }
 
 model Vehicle {
-  id              String          @id @default(uuid())
-  vehicleNumber   String          @unique
+  id              BigInt               @id @unique
+  vehicleNumber   String            @unique
   vehicleType     VehicleType
-  vehicleModel    String
   vehicleRunKM    Int
   vehicleFuelType FuelType
   vehicleKMLimit  Int
   vehicleDriver   VehicleDriver[]
+  vehicleLocation VehicleLocation[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 }
 
 model VehicleDriver {
   id        String  @id @default(uuid())
-  vehicleId String
+  vehicleId BigInt
   vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   name      String
-  number    Int     @unique
+  number    Int?    @unique
 }
 
 model VehicleLocation {
   id        String   @id @default(uuid())
   latitude  Float
   longitude Float
+  vehicleId BigInt
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   time      DateTime @default(now())
 }
 
@@ -50,11 +54,16 @@ model Admin {
 
 enum FuelType {
   Petrol
-  Desiel
+  Diesel
 }
 
 enum VehicleType {
-  Bike
-  Car
-  Truck
+  Motorcycle
+  Ton25
+  ALS
+  TATRA
+  WB
+  Bus
+  Safari
+  Scorpio
 }
