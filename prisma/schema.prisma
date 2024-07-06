@@ -14,7 +14,7 @@ datasource db {
 }
 
 model Vehicle {
-  id              BigInt               @id @unique
+  id              String            @id @unique
   vehicleNumber   String            @unique
   vehicleType     VehicleType
   vehicleRunKM    Int
@@ -28,7 +28,7 @@ model Vehicle {
 
 model VehicleDriver {
   id        String  @id @default(uuid())
-  vehicleId BigInt
+  vehicleId String
   vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   name      String
   number    Int?    @unique
@@ -38,7 +38,7 @@ model VehicleLocation {
   id        String   @id @default(uuid())
   latitude  Float
   longitude Float
-  vehicleId BigInt
+  vehicleId String
   vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   time      DateTime @default(now())
 }

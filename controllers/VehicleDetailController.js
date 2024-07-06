@@ -3,7 +3,7 @@ async function handelVehicleDetail(req,res){
         const {vehicleNumber,vehicleType,vehicleRunKM,vehicleFuelType,vehicleKMLimit,driverName, id} = req.body
         const vehicle = await global.prisma.vehicle.create({
             data:{
-                id: BigInt(id),
+                id: id,
                 vehicleNumber: vehicleNumber,
                 vehicleType: vehicleType,
                 vehicleRunKM: vehicleRunKM,
