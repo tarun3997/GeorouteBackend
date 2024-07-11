@@ -1,3 +1,9 @@
+const axios = require('axios');
+require('dotenv').config()
+const { format, isToday,differenceInMinutes } = require('date-fns');
+
+
+
 async function handelVehicleDetail(req,res){
     try {
         const {vehicleNumber,vehicleType,vehicleRunKM,vehicleFuelType,vehicleKMLimit,driverName, id} = req.body
@@ -20,21 +26,79 @@ async function handelVehicleDetail(req,res){
             }
 
         })
-        console.log(vehicle)
         res.status(201).json(vehicle);
     } catch (error) {
-        console.log("getting error",error)
     }
 }
-async function getVehicleDetails(req,res){
+
+async function getVehicleDetails(req, res) {
     try {
-        const response = await global.prisma.vehicle.findMany()
-        console.log(response)
-        res.status(200).json(response)
+      const vehicles = await global.prisma.vehicle.findMany({
+        select: {
+          id: true,
+          vehicleNumber: true,
+          vehicleType: true,
+          vehicleRunKM: true,
+          vehicleFuelType: true,
+          vehicleKMLimit: true,
+          vehicleLocation: {
+            orderBy: {
+                time: 'desc'
+            },
+            take: 1 // Take only the latest location
+          }
+        }
+      });
+  
+      const vehicleDetails = await Promise.all(vehicles.map(async (vehicle) => {
+        const latestLocation = vehicle.vehicleLocation[0]; // The latest location
+        let locationName = 'Error fetching location';
+        let isActive = true;
+        let formattedTime = 'N/A';
+
+        if (latestLocation) {
+          const { latitude, longitude, time } = latestLocation;
+          try {
+            const response = await axios.get(`https://apis.mapmyindia.com/advancedmaps/v1/${process.env.MAP_MY_INDIA_API_KEY}/rev_geocode`, {
+              params: {
+                lat: latitude,
+                lng: longitude
+              }
+            });
+            locationName = response.data.results[0].formatted_address || 'Unknown location';
+          } catch (error) {
+          }
+          const date = new Date(time);
+          const now = new Date();
+          const timeDifference = differenceInMinutes(now, date);
+          isActive = timeDifference >= 1;
+
+          if (isToday(date)) {
+            formattedTime = format(date, 'p'); // Only time
+          } else {
+            formattedTime = format(date, 'P p'); // Date and time
+          }
+        }
+        
+        return {
+          id: vehicle.id,
+          vehicleNumber: vehicle.vehicleNumber,
+          vehicleType: vehicle.vehicleType,
+          vehicleRunKM: vehicle.vehicleRunKM,
+          vehicleFuelType: vehicle.vehicleFuelType,
+          vehicleKMLimit: vehicle.vehicleKMLimit,
+          vehicleLocation: latestLocation ? { latitude: latestLocation.latitude, longitude: latestLocation.longitude, locationName } : 'No location data',
+          updatedTime: formattedTime,
+          isActive: isActive
+        };
+      }));
+
+      res.json(vehicleDetails);
     } catch (error) {
-        console.log("getting error",error)
+      console.error('Error fetching vehicle details:', error);
+      res.status(500).json({ error: 'Error fetching vehicle details' });
     }
-}
+  }
 
 async function getVehicleCount(req,res){
     try {
@@ -74,4 +138,88 @@ async function getVehicleCount(req,res){
     }
 }
 
-module.exports = {handelVehicleDetail, getVehicleDetails, getVehicleCount}
+async function getVehicleDetailById(req, res) {
+  try {
+    const { id } = req.params;
+
+    const vehicle = await global.prisma.vehicle.findUnique({
+      where: {
+        id: id,
+      },
+      select: {
+        id: true,
+        vehicleNumber: true,
+        vehicleType: true,
+        vehicleRunKM: true,
+        vehicleFuelType: true,
+        vehicleKMLimit: true,
+        vehicleDriver: {
+          select: {
+            name: true,
+          },
+        },
+        vehicleLocation: {
+          orderBy: {
+            time: 'desc',
+          },
+          take: 1, // Take only the latest location
+        },
+      },
+    });
+
+    if (!vehicle) {
+      return res.status(404).json({ error: 'Vehicle not found' });
+    }
+
+    const latestLocation = vehicle.vehicleLocation[0];
+    let locationName = 'Error fetching location';
+    let isActive = true;
+    let formattedTime = 'N/A';
+
+    if (latestLocation) {
+      const { latitude, longitude, time } = latestLocation;
+      try {
+        const response = await axios.get(`https://apis.mapmyindia.com/advancedmaps/v1/${process.env.MAP_MY_INDIA_API_KEY}/rev_geocode`, {
+          params: {
+            lat: latitude,
+            lng: longitude,
+          },
+        });
+        locationName = response.data.results[0].formatted_address || 'Unknown location';
+      } catch (error) {
+        console.error('Error fetching location name:', error);
+      }
+
+      const date = new Date(time);
+      const now = new Date();
+      const timeDifference = differenceInMinutes(now, date);
+      isActive = timeDifference < 1;
+
+      if (isToday(date)) {
+        formattedTime = format(date, 'p'); // Only time
+      } else {
+        formattedTime = format(date, 'P p'); // Date and time
+      }
+    }
+
+    const vehicleDetails = {
+      id: vehicle.id,
+      vehicleNumber: vehicle.vehicleNumber,
+      driverName: vehicle.vehicleDriver[0].name,
+      vehicleType: vehicle.vehicleType,
+      vehicleRunKM: vehicle.vehicleRunKM,
+      vehicleFuelType: vehicle.vehicleFuelType,
+      vehicleKMLimit: vehicle.vehicleKMLimit,
+      vehicleLocation: latestLocation ? { latitude: latestLocation.latitude, longitude: latestLocation.longitude, locationName } : 'No location data',
+      updatedTime: formattedTime,
+      isActive: isActive,
+    };
+
+    res.json(vehicleDetails);
+  } catch (error) {
+    console.error('Error fetching vehicle details:', error);
+    res.status(500).json({ error: 'Error fetching vehicle details' });
+  }
+}
+
+module.exports = {handelVehicleDetail, getVehicleDetails, getVehicleCount, getVehicleDetailById}

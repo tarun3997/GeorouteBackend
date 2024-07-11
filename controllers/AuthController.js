@@ -17,10 +17,8 @@ async function handelLogin(req, res) {
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
-    console.log(user)
     res.status(200).json({ message: "Login successful", id: user.id });
   } catch (error) {
-    console.log(error)
     res.status(500).json({ message: "Something went wrong" });
   }
 }
@@ -33,13 +31,12 @@ async function handelRegistration(req, res) {
       data: {
         name: name,
         email: email,
+        
         password: hashedPassword,
       },
     });
-    console.log(user);
     res.status(201).json({ message: "User created successfully",id: user.id });
   } catch (error) {
-    console.log(error);
     throw(error);
   }
 }

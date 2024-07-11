@@ -4,7 +4,6 @@ const haversine = require("haversine-distance");
 
 async function VehicleLocation(req, res) {
   const { lat, lng ,vehicleId} = req.body;
-  console.log(`Received lat: ${lat}, lng: ${lng} ${vehicleId}`);
   try {
     const lastLocation = await prisma.vehicleLocation.findFirst({
       where:{vehicleId: vehicleId },
@@ -36,8 +35,7 @@ async function VehicleLocation(req, res) {
       where: { id: vehicleId },
       data: { vehicleRunKM: newVehicleRunKM },
     });
-    console.log(newVehicleRunKM);
-    console.log(location);
+   
     res.status(200).send("Location saved!");
   } catch (error) {
     console.error(error);

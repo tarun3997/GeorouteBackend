@@ -9,8 +9,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Vehicle {
@@ -20,18 +21,18 @@ model Vehicle {
   vehicleRunKM    Int
   vehicleFuelType FuelType
   vehicleKMLimit  Int
-  vehicleDriver   VehicleDriver[]
+  vehicleDriver   VehicleDriver?
   vehicleLocation VehicleLocation[]
+  newVehicleKm    Int
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }
 
 model VehicleDriver {
   id        String  @id @default(uuid())
-  vehicleId String
-  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  vehicleId String  @unique
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id])
   name      String
-  number    Int?    @unique
 }
 
 model VehicleLocation {
