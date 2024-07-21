@@ -1,5 +1,7 @@
 const { prisma } = require("../db");
 const haversine = require("haversine-distance");
+const { isVehicleInBound } = require("../utils/VehicleInBound");
+const { sendNotification } = require("./PushNotificationController");
 
 
 async function VehicleLocation(req, res) {
@@ -35,6 +37,13 @@ async function VehicleLocation(req, res) {
       where: { id: vehicleId },
       data: { vehicleRunKM: newVehicleRunKM },
     });
+    const vehicleLocation = {lat: parseFloat(lat), lng: parseFloat(lng)};
+    if(!isVehicleInBound(vehicleLocation)){
+      console.log('Vehicle is out of bounds.');
+      await sendNotification('Alert', 'Vehicle is out of bounds!', 'd41VCvluTlO4-YEYU842fv:APA91bFHlfQduoJrhh2DpAzqjKyWuI-l0xazhGzuJcoARnEBSRAhxp7W1LwLKhykWiC210iGO_EeolCHwJJbVMzL984gUjfK4g8-k4gYvA0C_4Pe1q2n9Ht55Dr7QuGJBz4kS7R1vj9V');
+    }else {
+      console.log('Vehicle is within bounds.');
+    }
    
     res.status(200).send("Location saved!");
   } catch (error) {

@@ -7,6 +7,10 @@ const { format, isToday,differenceInMinutes } = require('date-fns');
 async function handelVehicleDetail(req,res){
     try {
         const {vehicleNumber,vehicleType,vehicleRunKM,vehicleFuelType,vehicleKMLimit,driverName, id} = req.body
+
+        if(vehicleKMLimit <= vehicleRunKM){
+          return res.status(400).json({error: 'vehicle Km limit must be greater than vehicle current Km'})
+        }
         const vehicle = await global.prisma.vehicle.create({
             data:{
                 id: id,
@@ -162,7 +166,7 @@ async function getVehicleDetailById(req, res) {
           orderBy: {
             time: 'desc',
           },
-          take: 1, // Take only the latest location
+          take: 1,
         },
       },
     });
@@ -196,9 +200,9 @@ async function getVehicleDetailById(req, res) {
       isActive = timeDifference < 1;
 
       if (isToday(date)) {
-        formattedTime = format(date, 'p'); // Only time
+        formattedTime = format(date, 'p'); 
       } else {
-        formattedTime = format(date, 'P p'); // Date and time
+        formattedTime = format(date, 'P p'); 
       }
     }
 
