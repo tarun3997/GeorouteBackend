@@ -23,7 +23,6 @@ model Vehicle {
   vehicleKMLimit  Int
   vehicleDriver   VehicleDriver?
   vehicleLocation VehicleLocation[]
-  newVehicleKm    Int
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   Notification    Notification[]

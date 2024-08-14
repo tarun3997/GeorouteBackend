@@ -8,9 +8,6 @@ async function handelVehicleDetail(req,res){
     try {
         const {vehicleNumber,vehicleType,vehicleRunKM,vehicleFuelType,vehicleKMLimit,driverName, id} = req.body
 
-        if(vehicleKMLimit <= vehicleRunKM){
-          return res.status(400).json({error: 'vehicle Km limit must be greater than vehicle current Km'})
-        }
         const vehicle = await global.prisma.vehicle.create({
             data:{
                 id: id,
@@ -32,6 +29,7 @@ async function handelVehicleDetail(req,res){
         })
         res.status(201).json(vehicle);
     } catch (error) {
+      console.log(error)
     }
 }
 

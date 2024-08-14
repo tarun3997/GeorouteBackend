@@ -24,7 +24,7 @@ function isVehicleInBound(vehicleLocation){
 
 }
 async function sendNotification(req, res){
-    const { registrationToken, message } = req.body;
+    const { message, registrationToken } = req.body;
  
     try {
         const response = await admin.messaging().send({

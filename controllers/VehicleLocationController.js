@@ -22,6 +22,7 @@ async function VehicleLocation(req, res) {
       where: { id: vehicleId },
     });
 
+    console.log(vehicle)
     const newVehicleRunKM = (vehicle.vehicleRunKM || 0) + distance;
 
    const location = await prisma.vehicleLocation.create({
@@ -41,13 +42,14 @@ async function VehicleLocation(req, res) {
     const vehicleLocation = {lat: parseFloat(lat), lng: parseFloat(lng)};
     if(!isVehicleInBound(vehicleLocation)){
       console.log('Vehicle is out of bounds.');
-      await sendNotification('Alert', 'Vehicle is out of bounds!', 'd41VCvluTlO4-YEYU842fv:APA91bFHlfQduoJrhh2DpAzqjKyWuI-l0xazhGzuJcoARnEBSRAhxp7W1LwLKhykWiC210iGO_EeolCHwJJbVMzL984gUjfK4g8-k4gYvA0C_4Pe1q2n9Ht55Dr7QuGJBz4kS7R1vj9V');
     }else {
       console.log('Vehicle is within bounds.');
     }
    
-    res.status(200).send("Location saved!", location);
-  } catch (error) {
+    res.status(201).json({
+      message: "Location saved!",
+      location: location
+    });  } catch (error) {
     console.error(error);
     res.status(500).send("Error saving location");
   }
