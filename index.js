@@ -14,5 +14,6 @@ app.use(express.static('public'))
 
 app.use('/api', require('./routes/AuthRoutes'))
 app.use('/api', require('./routes/VehicleRoutes'))
+app.use('/api/update', require('./routes/UpdateRoutes'))
 
 app.listen(process.env.PORT,() => console.log(`server is started ${process.env.PORT}`))

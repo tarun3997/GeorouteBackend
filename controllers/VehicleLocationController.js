@@ -5,7 +5,7 @@ const { sendNotification } = require("./PushNotificationController");
 
 
 async function VehicleLocation(req, res) {
-  const { lat, lng ,vehicleId} = req.body;
+  const { lat, lng ,vehicleId,speed} = req.body;
   try {
     const lastLocation = await prisma.vehicleLocation.findFirst({
       where:{vehicleId: vehicleId },
@@ -28,6 +28,7 @@ async function VehicleLocation(req, res) {
       data: {
         latitude: parseFloat(lat),
         longitude: parseFloat(lng),
+        speed: parseFloat(speed),
         vehicle: {
           connect: { id: vehicleId },
         },
@@ -45,7 +46,7 @@ async function VehicleLocation(req, res) {
       console.log('Vehicle is within bounds.');
     }
    
-    res.status(200).send("Location saved!");
+    res.status(200).send("Location saved!", location);
   } catch (error) {
     console.error(error);
     res.status(500).send("Error saving location");

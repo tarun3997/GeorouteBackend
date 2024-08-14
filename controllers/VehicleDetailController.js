@@ -214,6 +214,7 @@ async function getVehicleDetailById(req, res) {
       vehicleRunKM: vehicle.vehicleRunKM,
       vehicleFuelType: vehicle.vehicleFuelType,
       vehicleKMLimit: vehicle.vehicleKMLimit,
+      vehicleLimitLeft: Math.abs(vehicle.vehicleRunKM - vehicle.vehicleKMLimit),
       vehicleLocation: latestLocation ? { latitude: latestLocation.latitude, longitude: latestLocation.longitude, locationName } : 'No location data',
       updatedTime: formattedTime,
       isActive: isActive,
