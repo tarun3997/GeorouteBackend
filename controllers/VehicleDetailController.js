@@ -72,15 +72,12 @@ async function getVehicleDetails(req, res) {
           } catch (error) {
           }
           const date = new Date(time);
-          const now = new Date();
-          const timeDifference = differenceInMinutes(now, date);
-          isActive = timeDifference >= 1;
-
-          if (isToday(date)) {
-            formattedTime = format(date, 'p'); // Only time
-          } else {
-            formattedTime = format(date, 'P p'); // Date and time
-          }
+      const timeZone = 'Asia/Kolkata'; // Specify your timezone here
+      formattedTime = formatInTimeZone(date, timeZone, 'p');
+      const now = new Date();
+      const nowZoned = formatInTimeZone(now, timeZone, 'p');
+      const timeDifference = differenceInMinutes(nowZoned, formattedTime);
+      isActive = timeDifference < 1;
         }
         
         return {
