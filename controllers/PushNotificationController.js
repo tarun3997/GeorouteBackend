@@ -44,18 +44,16 @@ async function sendNotification(req, res){
 }
 
 
-async function sendNotifications(title, body, token){
-    const message = {
-        notification:{
-            title: title,
-            body: body
-        },
-        token: token
-    }
+async function sendNotifications(message, registrationToken){
+    
     try {
-        const response = await admin.messaging().send(message)
-        res.json({message: "Successfully sent message:"} )
-        console.log('Successfully sent message:', response);
+        const response = await admin.messaging().send({
+            token: registrationToken,
+            notification: {
+                title: message.title,
+                body: message.body,
+            }
+        });
     } catch (error) {
         console.log('Error sending message:', error);
    
@@ -64,4 +62,4 @@ async function sendNotifications(title, body, token){
 }
 
 
-module.exports = { sendNotification };
+module.exports = { sendNotifications, sendNotification };

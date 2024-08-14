@@ -161,10 +161,8 @@ async function getVehicleDetailById(req, res) {
           },
         },
         vehicleLocation: {
-          orderBy: {
-            time: 'desc',
-          },
-          take: 1,
+          where: { time: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } }, // Fetch today's data
+          orderBy: { time: 'asc' }
         },
       },
     });
@@ -173,12 +171,29 @@ async function getVehicleDetailById(req, res) {
       return res.status(404).json({ error: 'Vehicle not found' });
     }
 
-    const latestLocation = vehicle.vehicleLocation[0];
+    const locations = vehicle.vehicleLocation;
     let locationName = 'Error fetching location';
     let isActive = true;
     let formattedTime = 'N/A';
+    let averageSpeed = 0;
+    let maxSpeed = 0;
 
-    if (latestLocation) {
+    if (locations.length > 0) {
+      let totalSpeed = 0;
+      let speedCount = 0;
+      for (let loc of locations) {
+        const speed = loc.speed;
+        totalSpeed += speed;
+        if (speed > maxSpeed) maxSpeed = speed;
+        speedCount += 1;
+      }
+      if (speedCount > 0) {
+        averageSpeed = totalSpeed / speedCount;
+      }
+      averageSpeed = averageSpeed.toFixed(2);
+      maxSpeed = maxSpeed.toFixed(2);
+
+      const latestLocation = locations[locations.length - 1];
       const { latitude, longitude, time } = latestLocation;
       try {
         const response = await axios.get(`https://apis.mapmyindia.com/advancedmaps/v1/${process.env.MAP_MY_INDIA_API_KEY}/rev_geocode`, {
@@ -207,15 +222,17 @@ async function getVehicleDetailById(req, res) {
     const vehicleDetails = {
       id: vehicle.id,
       vehicleNumber: vehicle.vehicleNumber,
-      driverName: vehicle.vehicleDriver[0].name,
+      driverName: vehicle.vehicleDriver.name,
       vehicleType: vehicle.vehicleType,
       vehicleRunKM: vehicle.vehicleRunKM,
       vehicleFuelType: vehicle.vehicleFuelType,
       vehicleKMLimit: vehicle.vehicleKMLimit,
       vehicleLimitLeft: Math.abs(vehicle.vehicleRunKM - vehicle.vehicleKMLimit),
-      vehicleLocation: latestLocation ? { latitude: latestLocation.latitude, longitude: latestLocation.longitude, locationName } : 'No location data',
+      vehicleLocation: locations.length ? { latitude: locations[locations.length - 1].latitude, longitude: locations[locations.length - 1].longitude, locationName } : 'No location data',
       updatedTime: formattedTime,
       isActive: isActive,
+      averageSpeed,
+      maxSpeed,
     };
 
     res.json(vehicleDetails);
