@@ -1,6 +1,7 @@
 const axios = require('axios');
 require('dotenv').config()
 const { format, isToday,differenceInMinutes } = require('date-fns');
+const { formatInTimeZone } = require('date-fns-tz');
 
 
 
@@ -208,15 +209,12 @@ async function getVehicleDetailById(req, res) {
       }
 
       const date = new Date(time);
+      const timeZone = 'Asia/Kolkata'; // Specify your timezone here
+      formattedTime = formatInTimeZone(date, timeZone, 'p');
       const now = new Date();
-      const timeDifference = differenceInMinutes(now, date);
+      const nowZoned = formatInTimeZone(now, timeZone, 'p');
+      const timeDifference = differenceInMinutes(nowZoned, formattedTime);
       isActive = timeDifference < 1;
-
-      if (isToday(date)) {
-        formattedTime = format(date, 'p'); 
-      } else {
-        formattedTime = format(date, 'P p'); 
-      }
     }
 
     const vehicleDetails = {
