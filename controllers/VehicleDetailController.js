@@ -162,7 +162,7 @@ async function getVehicleDetailById(req, res) {
         },
         vehicleLocation: {
           where: { time: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } }, // Fetch today's data
-          orderBy: { time: 'asc' }
+          orderBy: { time: 'desc' }
         },
       },
     });
