@@ -16,15 +16,19 @@ async function VehicleLocation(req, res) {
     if (lastLocation) {
       const lastCoords = { lat: lastLocation.latitude, lng: lastLocation.longitude };
       const newCoords = { lat: parseFloat(lat), lng: parseFloat(lng) };
-      distance = haversine(lastCoords, newCoords) / 1000; // Convert to kilometers
+      const vaildDistance = haversine(lastCoords, newCoords)
+      if(vaildDistance > 300){
+      distance = haversine(lastCoords, newCoords) / 1000; 
+      }
     }
     const vehicle = await prisma.vehicle.findUnique({
       where: { id: vehicleId },
     });
 
-    const newVehicleRunKM = (vehicle.vehicleRunKM || 0) + distance;
-
-   const location = await prisma.vehicleLocation.create({
+    // console.log(distance)
+    const newVehicleRunKM = (vehicle.vehicleNewKm || 0) + distance;
+    console.log(newVehicleRunKM)
+   await prisma.vehicleLocation.create({
       data: {
         latitude: parseFloat(lat),
         longitude: parseFloat(lng),
@@ -36,7 +40,7 @@ async function VehicleLocation(req, res) {
     });
     await prisma.vehicle.update({
       where: { id: vehicleId },
-      data: { vehicleRunKM: newVehicleRunKM },
+      data: { vehicleNewKm: newVehicleRunKM },
     });
     const vehicleLocation = {lat: parseFloat(lat), lng: parseFloat(lng)};
     if(!isVehicleInBound(vehicleLocation)){
