@@ -17,7 +17,7 @@ async function VehicleLocation(req, res) {
       const lastCoords = { lat: lastLocation.latitude, lng: lastLocation.longitude };
       const newCoords = { lat: parseFloat(lat), lng: parseFloat(lng) };
       const vaildDistance = haversine(lastCoords, newCoords)
-      if(vaildDistance > 300){
+      if(vaildDistance > 30){
       distance = haversine(lastCoords, newCoords) / 1000; 
       }
     }
