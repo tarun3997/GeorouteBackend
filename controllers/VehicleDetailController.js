@@ -218,12 +218,14 @@ async function getVehicleDetailById(req, res) {
             Math.max(...validSpeeds),
           ]
         : [0, 0];
+        const roundedNewAverageSpeed = Math.round(newAverageSpeed * 100) / 100;
+
       await global.prisma.vehicle.update({
         where: { id },
         data: {
           vehicleNewKm: totalDistance,
           lastProcessedIndex: vehicle.vehicleLocation.length,
-          averageSpeed: vehicle.averageSpeed + newAverageSpeed,
+          averageSpeed: Math.round((vehicle.averageSpeed + roundedNewAverageSpeed) * 100) / 100,
           maxSpeed: Math.max(vehicle.maxSpeed, newMaxSpeed),
         },
       });
