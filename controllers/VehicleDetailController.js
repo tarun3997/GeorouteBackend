@@ -54,7 +54,7 @@ async function getVehicleDetails(req, res) {
           orderBy: {
             time: "desc",
           },
-          take: 1, // Take only the latest location
+          take: 1,
         },
       },
     });
@@ -172,6 +172,9 @@ async function getVehicleDetailById(req, res) {
         vehicleFuelType: true,
         vehicleKMLimit: true,
         vehicleNewKm: true,
+        lastProcessedIndex: true,
+        averageSpeed: true,
+        maxSpeed: true,
         vehicleDriver: {
           select: {
             name: true,
@@ -189,53 +192,48 @@ async function getVehicleDetailById(req, res) {
       return res.status(404).json({ error: "Vehicle not found" });
     }
 
-    const locations = vehicle.vehicleLocation;
-    // const filteredLocations = [locations[0]];
-    // for (let i = 1; i < locations.length; i++) {
-    //   const previousLocation = filteredLocations[filteredLocations.length -1];
-    //   const currentLocation = locations[i];
-    //   const distance = haversine(
-    //     { lat: previousLocation.latitude, lng: previousLocation.longitude },
-    //     { lat: currentLocation.latitude, lng: currentLocation.longitude }
-    //   );
-    //   if (distance > 300) { 
-    //     filteredLocations.push(currentLocation);
-    //   }
-    // }
-    const validSpeeds = locations.map(location => location.speed).filter(speed => speed > 5)
+    const lastProcessedIndex = vehicle.lastProcessedIndex || 0;
+    const locations = vehicle.vehicleLocation.slice(lastProcessedIndex);
+    let totalDistance = 0;
+    let validSpeeds = [];
+
+    if (locations.length > 0) {
+      locations.forEach((location, i) => {
+        if (i < locations.length - 1) {
+          const point1 = { lat: location.latitude, lng: location.longitude };
+          const point2 = {
+            lat: locations[i + 1].latitude,
+            lng: locations[i + 1].longitude,
+          };
+          totalDistance += haversine(point1, point2) / 1000;
+        }
+        if (location.speed > 5) {
+          validSpeeds.push(location.speed);
+        }
+      });
+
+      const [newAverageSpeed, newMaxSpeed] = validSpeeds.length
+        ? [
+            validSpeeds.reduce((a, b) => a + b, 0) / validSpeeds.length,
+            Math.max(...validSpeeds),
+          ]
+        : [0, 0];
+      await global.prisma.vehicle.update({
+        where: { id },
+        data: {
+          vehicleNewKm: totalDistance,
+          lastProcessedIndex: vehicle.vehicleLocation.length,
+          averageSpeed: vehicle.averageSpeed + newAverageSpeed,
+          maxSpeed: Math.max(vehicle.maxSpeed, newMaxSpeed),
+        },
+      });
+    }
+
     const latestLocation = vehicle.vehicleLocation[0];
     let locationName = "Error fetching location";
     let isActive = true;
     let formattedTime = "N/A";
-    let averageSpeed = 0;
-    let maxSpeed = 0;
 
-    if (locations.length === 0) {
-      return res.status(404).json({ error: "No location data found" });
-    }
-
-  //   let totalDistance = 0;
-
-  //   if(filteredLocations){
-  //   for (let i = 0; i < filteredLocations.length - 1; i++) {
-  //     const point1 = { lat: filteredLocations[i].latitude, lng: filteredLocations[i].longitude };
-  //     const point2 = { lat: filteredLocations[i + 1].latitude, lng: filteredLocations[i + 1].longitude };
-
-  //     try {
-  //       const distanceBetweenPoints = haversine(point1, point2) / 1000;
-  //       totalDistance += distanceBetweenPoints;
-  //     } catch (error) {
-  //       console.error(`Error calculating distance: ${error}`);
-  //     }
-  //   }
-  //   console.log(`Total distance covered: ${totalDistance.toFixed(2)} km`);
-  // }
-
-    if(validSpeeds.length > 0){
-      const totalSpeed = validSpeeds.reduce((sum, speed) => sum + speed, 0);
-      averageSpeed = totalSpeed / validSpeeds.length;
-      maxSpeed = Math.max(...validSpeeds);
-    }
     if (latestLocation) {
       const { latitude, longitude, time } = latestLocation;
       try {
@@ -255,7 +253,7 @@ async function getVehicleDetailById(req, res) {
       }
 
       const date = new Date(time);
-      const timeZone = "Asia/Kolkata"; // Specify your timezone here
+      const timeZone = "Asia/Kolkata";
       formattedTime = formatInTimeZone(date, timeZone, "p");
       const now = new Date();
       const nowZoned = formatInTimeZone(now, timeZone, "p");
@@ -268,7 +266,7 @@ async function getVehicleDetailById(req, res) {
       vehicleNumber: vehicle.vehicleNumber,
       driverName: vehicle.vehicleDriver.name,
       vehicleType: vehicle.vehicleType,
-      vehicleRunKM: Math.abs(vehicle.vehicleRunKM + vehicle.vehicleNewKm),
+      vehicleRunKM: vehicle.vehicleRunKM,
       vehicleNewKm: vehicle.vehicleNewKm,
       vehicleFuelType: vehicle.vehicleFuelType,
       vehicleKMLimit: vehicle.vehicleKMLimit,
@@ -282,11 +280,9 @@ async function getVehicleDetailById(req, res) {
         : "No location data",
       updatedTime: formattedTime,
       isActive: isActive,
-      averageSpeed: averageSpeed.toFixed(2),
-      maxSpeed: maxSpeed.toFixed(2),
+      averageSpeed: vehicle.averageSpeed,
+      maxSpeed: vehicle.maxSpeed,
     };
-
-    // console.log(vehicleDetails)
     res.json(vehicleDetails);
   } catch (error) {
     console.error("Error fetching vehicle details:", error);

@@ -25,7 +25,6 @@ model Admin {
   updatedAt          DateTime             @updatedAt
 }
 
-
 model NotificationDevice {
   id                String   @id @default(uuid())
   notificationToken String
@@ -36,18 +35,21 @@ model NotificationDevice {
 }
 
 model Vehicle {
-  id              String            @id @unique
-  vehicleNumber   String            @unique
-  vehicleType     VehicleType
-  vehicleRunKM    Int
-  vehicleFuelType FuelType
-  vehicleKMLimit  Int
-  vehicleNewKm    Int               @default(0)
-  vehicleDriver   VehicleDriver?
-  vehicleLocation VehicleLocation[]
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  Notification    Notification[]
+  id                 String            @id @unique
+  vehicleNumber      String            @unique
+  vehicleType        VehicleType
+  vehicleRunKM       Int
+  vehicleFuelType    FuelType
+  vehicleKMLimit     Int
+  vehicleNewKm       Int               @default(0)
+  lastProcessedIndex Int               @default(0)
+  averageSpeed       Float               @default(0)
+  maxSpeed           Float               @default(0)
+  vehicleDriver      VehicleDriver?
+  vehicleLocation    VehicleLocation[]
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  Notification       Notification[]
 }
 
 model VehicleDriver {
