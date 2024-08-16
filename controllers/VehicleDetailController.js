@@ -277,6 +277,7 @@ async function getVehicleDetailById(req, res) {
         ? {
             latitude: latestLocation.latitude,
             longitude: latestLocation.longitude,
+            lastSpeed: latestLocation.speed,
             locationName,
           }
         : "No location data",
