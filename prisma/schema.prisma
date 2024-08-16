@@ -41,7 +41,7 @@ model Vehicle {
   vehicleRunKM       Int
   vehicleFuelType    FuelType
   vehicleKMLimit     Int
-  vehicleNewKm       Int               @default(0)
+  vehicleNewKm       Float               @default(0)
   lastProcessedIndex Int               @default(0)
   averageSpeed       Float               @default(0)
   maxSpeed           Float               @default(0)
