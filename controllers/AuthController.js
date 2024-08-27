@@ -1,24 +1,88 @@
 const bcrypt = require("bcryptjs");
-const  jwt  = require("jsonwebtoken");
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
 const { prisma } = require("../db");
 
 async function handelLogin(req, res) {
   try {
-    const { email, password } = req.body;
+    const { email, password,fcmToken } = req.body;
     const user = await prisma.admin.findUnique({
       where: {
         email: email,
       },
+      include:{
+        notificationDevice: true
+      }
     });
-    if (!user) {
-      return res.status(401).json({ message: "Invalid email or password" });
+    if (user) {
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(401).json({ message: "Invalid password" });
+      }
+      const existingToken = user.notificationDevice.find(
+        (device) => device.notificationToken === fcmToken
+      );
+      if (!existingToken) {
+        await prisma.notificationDevice.create({
+          data: {
+            notificationToken: fcmToken,
+            adminId: user.id,
+          },
+        });
+      }
+      const token = jwt.sign({ id: user.id }, process.env.ACCESS_TOKEN_SECRET);
+      
+      res.cookie("jwt", token, {
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000,
+      });
+
+      return res
+        .status(200)
+        .json({ message: "Admin login successful", id: token, role: "ADMIN" });
+    } else {
+      const vehicle = await prisma.vehicle.findUnique({
+        where: {
+          vehicleNumber: email,
+        },
+      });
+      if (vehicle) {
+        const isMatch = await bcrypt.compare(password, vehicle.password);
+        if (!isMatch) {
+          return res.status(401).json({ message: "Invalid  password" });
+        }
+        const token = jwt.sign(
+          { id: vehicle.id },
+          process.env.ACCESS_TOKEN_SECRET
+        );
+        if (!vehicle.notificationToken) {
+          await prisma.vehicle.update({
+            where: { id: vehicle.id },
+            data: { notificationToken: fcmToken },
+          });
+        } else if (vehicle.notificationToken !== fcmToken) {
+          await prisma.vehicle.update({
+            where: { id: vehicle.id },
+            data: { notificationToken: fcmToken },
+          });
+        }
+        res.cookie("jwt", token, {
+          httpOnly: true,
+          maxAge: 24 * 60 * 60 * 1000,
+        });
+        return res
+          .status(200)
+          .json({
+            message: "Driver login successful",
+            id: token,
+            role: "DRIVER",
+          });
+      }else {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
     }
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Invalid email or password" });
-    }
-    res.status(200).json({ message: "Login successful", id: user.id });
   } catch (error) {
+    console.log(error)
     res.status(500).json({ message: "Something went wrong" });
   }
 }
@@ -31,15 +95,14 @@ async function handelRegistration(req, res) {
       data: {
         name: name,
         email: email,
-        
+
         password: hashedPassword,
       },
     });
-    res.status(201).json({ message: "User created successfully",id: user.id });
+    res.status(201).json({ message: "User created successfully", id: user.id });
   } catch (error) {
-    throw(error);
+    throw error;
   }
 }
 
 module.exports = { handelRegistration, handelLogin };
-

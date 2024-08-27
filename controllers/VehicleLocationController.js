@@ -1,7 +1,7 @@
 const { prisma } = require("../db");
 const haversine = require("haversine-distance");
 const { isVehicleInBound } = require("../utils/VehicleInBound");
-const { sendNotifications } = require("./PushNotificationController");
+const { sendNotification } = require("./PushNotificationController");
 
 async function VehicleLocation(req, res) {
   const { lat, lng, vehicleId, speed } = req.body;
@@ -18,18 +18,35 @@ async function VehicleLocation(req, res) {
     });
 
     const vehicleLocation = { lat: parseFloat(lat), lng: parseFloat(lng) };
-    if (!isVehicleInBound(vehicleLocation)) {
-      console.log("Vehicle is out of bounds.");
+    const isInBound = isVehicleInBound(vehicleLocation);
+
+    const vehicle = await prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+      select: { isOutOfBounds: true }
+    });
+
+    if (!isInBound && !vehicle.isOutOfBounds) {
       const message = {
         title: "Vehicle Out of Bounds",
         body: "The vehicle has moved out of the defined geofence.",
       };
-
-      const registrationToken =
-        "cRHTdJHGQCObW8BpeHlLNI:APA91bF2rCHjYV1e8ovqPN0_EC5ErXj0EUTffVKwl5eFbRazNho9YlOHwbxLFynaFcnXhnJM40bJjZEOa-GFlL7EP0jQ15WBJ3kcFC-T_GrZa_T5KNQnw516MnC8bQNGtXTgB7ldL3wd";
-      await sendNotifications(message, registrationToken);
-    } else {
-      console.log("Vehicle is within bounds.");
+      await sendNotification(message, vehicleId);
+      await prisma.vehicle.update({
+        where: { id: vehicleId },
+        data: { isOutOfBounds: true }
+      });
+    } else if(isInBound && vehicle.isOutOfBounds) {
+      const message = {
+        title: "Vehicle Back in Bounds",
+        body: "The vehicle has returned to the defined geofence.",
+      };
+      await sendNotification(message, vehicleId);
+      await prisma.vehicle.update({
+        where: { id: vehicleId },
+        data: { isOutOfBounds: false }
+      });
+    }else {
+      console.log("Vehicle status hasn't changed.");
     }
 
     res.status(201).json({

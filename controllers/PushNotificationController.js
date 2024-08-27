@@ -2,64 +2,107 @@ const admin = require("firebase-admin");
 const haversine = require("haversine-distance");
 
 const serviceAccount = require("../config/push-notification-key.json");
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
+const { prisma } = require("../db");
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.cert(serviceAccount),
 });
 
-const geofenceCenter = {
-    lat: 28.6139,
-    lng: 77.2090
+async function sendNotification(message, id) {
+  try {
+    const adminFcmTokens = await prisma.notificationDevice.findMany({
+      select: {
+        notificationToken: true,
+      },
+    });
+    const driverFcmToken = await prisma.vehicle.findUnique({
+      where: {
+        id: id,
+      },
+      select: {
+        notificationToken: true,
+      },
+    });
+    const tokens = [
+      ...adminFcmTokens.map((device) => device.notificationToken),
+      driverFcmToken.notificationToken,
+    ].filter(Boolean);
+    const payload = {
+      notification: {
+        title: message.title,
+        body: message.body,
+      },
+    };
+    const promises = tokens.map((token) =>
+      admin.messaging().send({
+        token,
+        ...payload,
+      })
+    );
+    await Promise.all(promises);
+
+    await prisma.notification.create({
+      data: {
+        vehicleId: id,
+        title: message.title,
+        body: message.body,
+      },
+    });
+    console.log('Notifications sent successfully!');
+  } catch (error) {
+    console.log("Error sending message:", error);
+  }
 }
-const geofenceRadius = 1000;
-
-function isVehicleInBound(vehicleLocation){
-    const vehicleCoords = {
-        lat: vehicleLocation.lat,
-        lng: vehicleLocation.lng
-      };
-
-      const distance = haversine(geofenceCenter, vehicleCoords);
-      return distance <= geofenceRadius;
-
-}
-async function sendNotification(req, res){
-    const { message, registrationToken } = req.body;
- 
+async function handelGetNotification(req, res) {
     try {
-        const response = await admin.messaging().send({
-            token: registrationToken,
-            notification:{
-                title: message.title,
-                body: message.body,
+        const {id} = req.params
+        const claims = jwt.verify(id, process.env.ACCESS_TOKEN_SECRET);
+        if(!claims){
+            return res.status(401).send({message: 'unauthenticated'})
+        }
+        const response = await prisma.notification.findMany({
+            where:{
+                vehicleId:claims.id
+            },
+            select:{
+                title: true,
+                body: true,
+                vehicle:{
+                    select:{
+                        vehicleNumber: true,
+                    }
+                },
+                time: true
             }
         })
-        res.json({message: "Successfully sent message:"} )
-        console.log('Successfully sent message:', response);
+        res.status(200).send(response);
     } catch (error) {
-        console.log('Error sending message:', error);
-   
+        console.log(error)
+        res.status(401).json({message:"Getting error from server"})   
     }
-    
 }
-
-
-async function sendNotifications(message, registrationToken){
-    
+async function handelAdminGetNotification(req, res) {
     try {
-        const response = await admin.messaging().send({
-            token: registrationToken,
-            notification: {
-                title: message.title,
-                body: message.body,
+        
+        const response = await prisma.notification.findMany({
+            select:{
+                title: true,
+                body: true,
+                vehicle:{
+                    select:{
+                        vehicleNumber: true,
+                    }
+                },
+                time: true
             }
-        });
+        })
+        console.log(response)
+        res.status(200).send(response);
     } catch (error) {
-        console.log('Error sending message:', error);
-   
+        console.log(error)
+        res.status(401).json({message:"Getting error from server"})   
     }
-    
 }
-
-
-module.exports = { sendNotifications, sendNotification };
+module.exports = { sendNotification, handelGetNotification,handelAdminGetNotification };
