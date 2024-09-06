@@ -2,10 +2,11 @@ const axios = require("axios");
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const { format, isToday, differenceInMinutes } = require("date-fns");
+const { format, isToday } = require("date-fns");
 const haversine = require("haversine-distance");
 const { formatInTimeZone } = require("date-fns-tz");
 const handelVehicleInfo = require("../utils/VehicleInfoUpdate");
+const { differenceInMinutes } = require("date-fns/fp");
 
 async function handelVehicleDetail(req, res) {
   try {
