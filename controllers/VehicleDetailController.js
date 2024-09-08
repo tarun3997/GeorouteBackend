@@ -172,22 +172,20 @@ async function getVehicleDetailById(req, res) {
   try {
     const { id, role } = req.headers;
     let userId;
-    if(role === "USER"){
-        const claims = jwt.verify(id, process.env.ACCESS_TOKEN_SECRET);
-        if(!claims){
-          return res.status(401).send({message: 'unauthenticated'})
+    if(role === "USER") {
+      const claims = jwt.verify(id, process.env.ACCESS_TOKEN_SECRET);
+      if(!claims) {
+        return res.status(401).send({message: 'Unauthenticated'});
       } 
       userId = claims.id;
-    }else if(role === "ADMIN"){
+    } else if(role === "ADMIN") {
       userId = id;
-    }else{
-      return res.status(401).send({message: 'unautherized'})
+    } else {
+      return res.status(401).send({message: 'Unauthorized'});
     }
 
     const vehicle = await global.prisma.vehicle.findUnique({
-      where: {
-        id: userId,
-      },
+      where: { id: userId },
       select: {
         id: true,
         vehicleNumber: true,
@@ -199,16 +197,8 @@ async function getVehicleDetailById(req, res) {
         lastProcessedIndex: true,
         averageSpeed: true,
         maxSpeed: true,
-        vehicleDriver: {
-          select: {
-            name: true,
-          },
-        },
-        vehicleLocation: {
-          orderBy: {
-            time: "desc",
-          },
-        },
+        vehicleDriver: { select: { name: true } },
+        vehicleLocation: { orderBy: { time: "desc" } },
       },
     });
 
@@ -216,45 +206,45 @@ async function getVehicleDetailById(req, res) {
       return res.status(404).json({ error: "Vehicle not found" });
     }
 
-    // const lastProcessedIndex = vehicle.lastProcessedIndex || 0;
-    // const locations = vehicle.vehicleLocation.slice(lastProcessedIndex);
-    // let totalDistance = 0;
-    // let validSpeeds = [];
+    const lastProcessedIndex = vehicle.lastProcessedIndex || 0;
+    const locations = vehicle.vehicleLocation.slice(lastProcessedIndex);
+    let totalDistance = 0;
+    let validSpeeds = [];
 
-    // if (locations.length > 0) {
-    //   locations.forEach((location, i) => {
-    //     if (i < locations.length - 1) {
-    //       const point1 = { lat: location.latitude, lng: location.longitude };
-    //       const point2 = {
-    //         lat: locations[i + 1].latitude,
-    //         lng: locations[i + 1].longitude,
-    //       };
-    //       totalDistance += haversine(point1, point2) / 1000;
-    //     }
-    //     if (location.speed > 5) {
-    //       validSpeeds.push(location.speed);
-    //     }
-    //   });
+    if (locations.length > 0) {
+      locations.forEach((location, i) => {
+        if (i < locations.length - 1) {
+          const point1 = { lat: location.latitude, lng: location.longitude };
+          const point2 = {
+            lat: locations[i + 1].latitude,
+            lng: locations[i + 1].longitude,
+          };
+          totalDistance += haversine(point1, point2) / 1000; // Convert meters to kilometers
+        }
+        if (location.speed > 5) { // Filter out low speeds
+          validSpeeds.push(location.speed);
+        }
+      });
 
-    //   const [newAverageSpeed, newMaxSpeed] = validSpeeds.length
-    //     ? [
-    //         validSpeeds.reduce((a, b) => a + b, 0) / validSpeeds.length,
-    //         Math.max(...validSpeeds),
-    //       ]
-    //     : [0, 0];
-    //     const roundedNewAverageSpeed = Math.round(newAverageSpeed * 100) / 100;
+      const [newAverageSpeed, newMaxSpeed] = validSpeeds.length
+        ? [
+            validSpeeds.reduce((a, b) => a + b, 0) / validSpeeds.length,
+            Math.max(...validSpeeds),
+          ]
+        : [0, 0];
 
-    //   await global.prisma.vehicle.update({
-    //     where: { id },
-    //     data: {
-    //       vehicleNewKm: totalDistance,
-    //       lastProcessedIndex: vehicle.vehicleLocation.length,
-    //       averageSpeed: Math.round((vehicle.averageSpeed + roundedNewAverageSpeed) * 100) / 100,
-    //       maxSpeed: Math.max(vehicle.maxSpeed, newMaxSpeed),
-    //     },
-    //   });
-    // }
-    handelVehicleInfo(vehicle, vehicle.id);
+      const roundedNewAverageSpeed = Math.round(newAverageSpeed * 100) / 100;
+
+      await global.prisma.vehicle.update({
+        where: { id: userId },
+        data: {
+          vehicleNewKm: totalDistance,
+          lastProcessedIndex: vehicle.vehicleLocation.length,
+          averageSpeed: roundedNewAverageSpeed, // Update with new calculated average speed
+          maxSpeed: Math.max(vehicle.maxSpeed, newMaxSpeed),
+        },
+      });
+    }
 
     const latestLocation = vehicle.vehicleLocation[0];
     let locationName = "Error fetching location";
@@ -267,14 +257,11 @@ async function getVehicleDetailById(req, res) {
         const response = await axios.get(
           `https://apis.mapmyindia.com/advancedmaps/v1/${process.env.MAP_MY_INDIA_API_KEY}/rev_geocode`,
           {
-            params: {
-              lat: latitude,
-              lng: longitude,
-            },
+            params: { lat: latitude, lng: longitude },
           }
         );
         locationName =
-          response.data.results[0].formatted_address || "Unknown location";
+          response.data.results[0]?.formatted_address || "Unknown location";
       } catch (error) {
         console.error("Error fetching location name:", error);
       }
@@ -291,13 +278,13 @@ async function getVehicleDetailById(req, res) {
     const vehicleDetails = {
       id: vehicle.id,
       vehicleNumber: vehicle.vehicleNumber,
-      driverName: vehicle.vehicleDriver.name,
+      driverName: vehicle.vehicleDriver?.name || "No driver",
       vehicleType: vehicle.vehicleType,
       vehicleRunKM: Math.abs(vehicle.vehicleRunKM + vehicle.vehicleNewKm).toFixed(2),
-      vehicleNewKm: vehicle.vehicleNewKm,
+      vehicleNewKm: parseFloat(vehicle.vehicleNewKm).toFixed(2),
       vehicleFuelType: vehicle.vehicleFuelType,
       vehicleKMLimit: vehicle.vehicleKMLimit,
-      vehicleLimitLeft: Math.abs(vehicle.vehicleRunKM - vehicle.vehicleKMLimit),
+      vehicleLimitLeft: Math.abs(vehicle.vehicleNewKm - vehicle.vehicleKMLimit).toFixed(2),
       vehicleLocation: latestLocation
         ? {
             latitude: latestLocation.latitude,
@@ -308,9 +295,10 @@ async function getVehicleDetailById(req, res) {
         : "No location data",
       updatedTime: formattedTime,
       isActive: isActive,
-      averageSpeed: vehicle.averageSpeed,
-      maxSpeed: vehicle.maxSpeed,
+      averageSpeed: vehicle.averageSpeed, // Provide the stored average speed
+      maxSpeed: vehicle.maxSpeed, // Provide the stored max speed
     };
+    console.log(vehicleDetails);
     res.json(vehicleDetails);
   } catch (error) {
     console.error("Error fetching vehicle details:", error);
