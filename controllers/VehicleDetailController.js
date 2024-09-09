@@ -172,16 +172,16 @@ async function getVehicleDetailById(req, res) {
   try {
     const { id, role } = req.headers;
     let userId;
-    if(role === "USER") {
+    if (role === "USER") {
       const claims = jwt.verify(id, process.env.ACCESS_TOKEN_SECRET);
-      if(!claims) {
-        return res.status(401).send({message: 'Unauthenticated'});
-      } 
+      if (!claims) {
+        return res.status(401).send({ message: 'Unauthenticated' });
+      }
       userId = claims.id;
-    } else if(role === "ADMIN") {
+    } else if (role === "ADMIN") {
       userId = id;
     } else {
-      return res.status(401).send({message: 'Unauthorized'});
+      return res.status(401).send({ message: 'Unauthorized' });
     }
 
     const vehicle = await global.prisma.vehicle.findUnique({
@@ -193,12 +193,12 @@ async function getVehicleDetailById(req, res) {
         vehicleRunKM: true,
         vehicleFuelType: true,
         vehicleKMLimit: true,
-        vehicleNewKm: true,
-        lastProcessedIndex: true,
+        vehicleNewKm: true,  // Accumulated distance in previous fetches
+        lastProcessedIndex: true, // Last index that was processed
         averageSpeed: true,
         maxSpeed: true,
         vehicleDriver: { select: { name: true } },
-        vehicleLocation: { orderBy: { time: "desc" } },
+        vehicleLocation: { orderBy: { time: "desc" } }, // Locations ordered by time
       },
     });
 
@@ -206,11 +206,14 @@ async function getVehicleDetailById(req, res) {
       return res.status(404).json({ error: "Vehicle not found" });
     }
 
+    // Get the last processed index and slice new locations
     const lastProcessedIndex = vehicle.lastProcessedIndex || 0;
     const locations = vehicle.vehicleLocation.slice(lastProcessedIndex);
-    let totalDistance = 0;
+
+    let newDistance = 0;
     let validSpeeds = [];
 
+    // Process only new locations since the last processed index
     if (locations.length > 0) {
       locations.forEach((location, i) => {
         if (i < locations.length - 1) {
@@ -219,13 +222,15 @@ async function getVehicleDetailById(req, res) {
             lat: locations[i + 1].latitude,
             lng: locations[i + 1].longitude,
           };
-          totalDistance += haversine(point1, point2) / 1000; // Convert meters to kilometers
+          // Use the Haversine formula to calculate the distance between two points in kilometers
+          newDistance += haversine(point1, point2) / 1000;
         }
-        if (location.speed > 5) { // Filter out low speeds
-          validSpeeds.push(location.speed);
+        if (location.speed > 5) {
+          validSpeeds.push(location.speed); // Only consider speeds above 5
         }
       });
 
+      // Calculate average and max speed for the new locations
       const [newAverageSpeed, newMaxSpeed] = validSpeeds.length
         ? [
             validSpeeds.reduce((a, b) => a + b, 0) / validSpeeds.length,
@@ -233,19 +238,19 @@ async function getVehicleDetailById(req, res) {
           ]
         : [0, 0];
 
-      const roundedNewAverageSpeed = Math.round(newAverageSpeed * 100) / 100;
 
       await global.prisma.vehicle.update({
         where: { id: userId },
         data: {
-          vehicleNewKm: totalDistance,
-          lastProcessedIndex: vehicle.vehicleLocation.length,
-          averageSpeed: roundedNewAverageSpeed, // Update with new calculated average speed
-          maxSpeed: Math.max(vehicle.maxSpeed, newMaxSpeed),
+          vehicleNewKm: vehicle.vehicleNewKm + newDistance, // Accumulate new distance
+          lastProcessedIndex: vehicle.vehicleLocation.length, // Update the index
+          averageSpeed: newAverageSpeed || vehicle.averageSpeed, // If valid speeds are present, update average speed
+          maxSpeed: Math.max(vehicle.maxSpeed, newMaxSpeed), // Update max speed if necessary
         },
       });
     }
 
+    // Get the latest location for displaying
     const latestLocation = vehicle.vehicleLocation[0];
     let locationName = "Error fetching location";
     let isActive = true;
@@ -280,7 +285,7 @@ async function getVehicleDetailById(req, res) {
       vehicleNumber: vehicle.vehicleNumber,
       driverName: vehicle.vehicleDriver?.name || "No driver",
       vehicleType: vehicle.vehicleType,
-      vehicleRunKM: Math.abs(vehicle.vehicleRunKM + vehicle.vehicleNewKm).toFixed(2),
+      vehicleRunKM: Math.abs(vehicle.vehicleRunKM + vehicle.vehicleNewKm).toFixed(2), // Accumulated distance
       vehicleNewKm: parseFloat(vehicle.vehicleNewKm).toFixed(2),
       vehicleFuelType: vehicle.vehicleFuelType,
       vehicleKMLimit: vehicle.vehicleKMLimit,
@@ -295,10 +300,10 @@ async function getVehicleDetailById(req, res) {
         : "No location data",
       updatedTime: formattedTime,
       isActive: isActive,
-      averageSpeed: vehicle.averageSpeed, // Provide the stored average speed
-      maxSpeed: vehicle.maxSpeed, // Provide the stored max speed
+      averageSpeed: vehicle.averageSpeed, // Provide updated average speed
+      maxSpeed: vehicle.maxSpeed, // Provide updated max speed
     };
-    console.log(vehicleDetails);
+
     res.json(vehicleDetails);
   } catch (error) {
     console.error("Error fetching vehicle details:", error);
@@ -306,9 +311,52 @@ async function getVehicleDetailById(req, res) {
   }
 }
 
+async function recordFuelRefill(req, res) {
+  try {
+    const { id, fuelAmount, odometerReading } = req.body;
+
+    const claims = jwt.verify(id.id, process.env.ACCESS_TOKEN_SECRET);
+      if (!claims) {
+        return res.status(401).send({ message: 'Unauthenticated' });
+      }
+     const vehicleId = claims.id;
+    const lastFuelLog = await global.prisma.fuelLog.findFirst({
+      where: { vehicleId },
+      orderBy: { refuelDate: 'desc' }, 
+    });
+
+    let mileage = null;
+    if (lastFuelLog) {
+      const distanceTraveled = odometerReading - lastFuelLog.odometerReading;
+      const fuelConsumed = lastFuelLog.fuelAmount;
+
+      mileage = distanceTraveled / fuelConsumed;
+    }
+
+    const fuelLog = await global.prisma.fuelLog.create({
+      data: {
+        vehicleId,
+        fuelAmount,
+        odometerReading,
+      },
+    });
+
+
+    res.status(201).json({
+      message: "Fuel refill recorded successfully",
+      mileage: mileage ? mileage.toFixed(2) : "N/A", 
+    });
+  } catch (error) {
+    console.error("Error recording fuel refill:", error);
+    res.status(500).json({ error: "Error recording fuel refill" });
+  }
+}
+
+
 module.exports = {
   handelVehicleDetail,
   getVehicleDetails,
   getVehicleCount,
   getVehicleDetailById,
+  recordFuelRefill
 };
