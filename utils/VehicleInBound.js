@@ -1,8 +1,8 @@
 const haversine = require("haversine-distance");
 
 const geofenceCenter = {
-    lat: 25.044014,
-    lng: 73.899915
+    lat: 24.554989,
+    lng: 73.677599
 }
 const geofenceRadius = 1000;
 
