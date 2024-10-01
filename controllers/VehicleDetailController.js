@@ -62,6 +62,7 @@ async function getVehicleDetails(req, res) {
         vehicleRunKM: true,
         vehicleFuelType: true,
         vehicleKMLimit: true,
+        isVehicleUnderRepairing: true,
         vehicleLocation: {
           orderBy: {
             time: "desc",
@@ -107,6 +108,7 @@ async function getVehicleDetails(req, res) {
           vehicleNumber: vehicle.vehicleNumber,
           vehicleType: vehicle.vehicleType,
           vehicleRunKM: vehicle.vehicleRunKM,
+          isVehicleUnderRepairing: vehicle.isVehicleUnderRepairing,
           vehicleFuelType: vehicle.vehicleFuelType,
           vehicleKMLimit: vehicle.vehicleKMLimit,
           vehicleLocation: latestLocation
@@ -121,6 +123,7 @@ async function getVehicleDetails(req, res) {
         };
       })
     );
+
 
     res.json(vehicleDetails);
   } catch (error) {
@@ -153,12 +156,18 @@ async function getVehicleCount(req, res) {
         },
       },
     });
+    const repairingVehicle = await global.prisma.vehicle.count({
+      where:{
+        isVehicleUnderRepairing: true
+      }
+    })
 
     res.status(200).json({
       total: totalVehicle,
       twoWheeler: twoWheeler,
       fourWheeler: fourWheeler,
       heavyVehicle: heavyVehicle,
+      repairingVehicle: repairingVehicle,
     });
   } catch (error) {
     console.log("getting error", error);
@@ -193,27 +202,36 @@ async function getVehicleDetailById(req, res) {
         vehicleRunKM: true,
         vehicleFuelType: true,
         vehicleKMLimit: true,
-        vehicleNewKm: true,  // Accumulated distance in previous fetches
-        lastProcessedIndex: true, // Last index that was processed
+        vehicleNewKm: true,  
+        lastProcessedIndex: true, 
+        isVehicleUnderRepairing: true,
         averageSpeed: true,
         maxSpeed: true,
+        RepairingVehicle:{
+          select:{
+            vehicleReason: true,
+            description: true,
+            damagePart: true
+          },
+        },
         vehicleDriver: { select: { name: true } },
-        vehicleLocation: { orderBy: { time: "desc" } }, // Locations ordered by time
+        vehicleLocation: { orderBy: { time: "desc" } }, 
       },
     });
+
 
     if (!vehicle) {
       return res.status(404).json({ error: "Vehicle not found" });
     }
 
-    // Get the last processed index and slice new locations
+
     const lastProcessedIndex = vehicle.lastProcessedIndex || 0;
     const locations = vehicle.vehicleLocation.slice(lastProcessedIndex);
 
     let newDistance = 0;
     let validSpeeds = [];
 
-    // Process only new locations since the last processed index
+
     if (locations.length > 0) {
       locations.forEach((location, i) => {
         if (i < locations.length - 1) {
@@ -222,15 +240,15 @@ async function getVehicleDetailById(req, res) {
             lat: locations[i + 1].latitude,
             lng: locations[i + 1].longitude,
           };
-          // Use the Haversine formula to calculate the distance between two points in kilometers
+
           newDistance += haversine(point1, point2) / 1000;
         }
         if (location.speed > 5) {
-          validSpeeds.push(location.speed); // Only consider speeds above 5
+          validSpeeds.push(location.speed); 
         }
       });
 
-      // Calculate average and max speed for the new locations
+
       const [newAverageSpeed, newMaxSpeed] = validSpeeds.length
         ? [
             validSpeeds.reduce((a, b) => a + b, 0) / validSpeeds.length,
@@ -242,15 +260,15 @@ async function getVehicleDetailById(req, res) {
       await global.prisma.vehicle.update({
         where: { id: userId },
         data: {
-          vehicleNewKm: vehicle.vehicleNewKm + newDistance, // Accumulate new distance
-          lastProcessedIndex: vehicle.vehicleLocation.length, // Update the index
-          averageSpeed: newAverageSpeed || vehicle.averageSpeed, // If valid speeds are present, update average speed
-          maxSpeed: Math.max(vehicle.maxSpeed, newMaxSpeed), // Update max speed if necessary
+          vehicleNewKm: vehicle.vehicleNewKm + newDistance, 
+          lastProcessedIndex: vehicle.vehicleLocation.length, 
+          averageSpeed: newAverageSpeed || vehicle.averageSpeed,
+          maxSpeed: Math.max(vehicle.maxSpeed, newMaxSpeed), 
         },
       });
     }
 
-    // Get the latest location for displaying
+
     const latestLocation = vehicle.vehicleLocation[0];
     let locationName = "Error fetching location";
     let isActive = true;
@@ -300,10 +318,14 @@ async function getVehicleDetailById(req, res) {
         : "No location data",
       updatedTime: formattedTime,
       isActive: isActive,
-      averageSpeed: vehicle.averageSpeed, // Provide updated average speed
-      maxSpeed: vehicle.maxSpeed, // Provide updated max speed
+      averageSpeed: vehicle.averageSpeed, 
+      maxSpeed: vehicle.maxSpeed, 
+      isVehicleUnderRepairing: vehicle.isVehicleUnderRepairing,
+      vehicleReason: vehicle.RepairingVehicle?.[0]?.vehicleReason || "No repair reason",
+      description: vehicle.RepairingVehicle?.[0]?.description || "No description",
+      damagePart: vehicle.RepairingVehicle?.[0]?.damagePart || "No damage part specified",
     };
-
+    // console.log(vehicleDetails)
     res.json(vehicleDetails);
   } catch (error) {
     console.error("Error fetching vehicle details:", error);

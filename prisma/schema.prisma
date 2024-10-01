@@ -35,36 +35,49 @@ model NotificationDevice {
 }
 
 model Vehicle {
-  id                 String            @id @unique
-  vehicleNumber      String            @unique
-  vehicleType        VehicleType
-  vehicleRunKM       Int
-  vehicleFuelType    FuelType
-  vehicleKMLimit     Int
-  vehicleNewKm       Float             @default(0.0)
-  lastProcessedIndex Int               @default(0)
-  notificationToken  String?
-  isOutOfBounds      Boolean           @default(false)
-  averageSpeed       Float             @default(0.0)
-  maxSpeed           Float             @default(0.0)
-  password           String
-  vehicleDriver      VehicleDriver?
-  vehicleLocation    VehicleLocation[]
-  fuelLogs           FuelLog[] 
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-  Notification       Notification[]
+  id                      String             @id @unique
+  vehicleNumber           String             @unique
+  vehicleType             VehicleType
+  vehicleRunKM            Int
+  vehicleFuelType         FuelType
+  vehicleKMLimit          Int
+  vehicleNewKm            Float              @default(0.0)
+  lastProcessedIndex      Int                @default(0)
+  notificationToken       String?
+  isOutOfBounds           Boolean            @default(false)
+  averageSpeed            Float              @default(0.0)
+  maxSpeed                Float              @default(0.0)
+  isVehicleUnderRepairing Boolean            @default(false)
+  password                String
+  vehicleDriver           VehicleDriver?
+  vehicleLocation         VehicleLocation[]
+  fuelLogs                FuelLog[]
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  Notification            Notification[]
+  RepairingVehicle        RepairingVehicle[]
+}
+
+model RepairingVehicle {
+  id            String   @id @default(uuid())
+  vehicleId     String
+  vehicle       Vehicle  @relation(fields: [vehicleId], references: [id])
+  vehicleReason String
+  description   String?
+  damagePart    String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model FuelLog {
-  id               String   @id @default(uuid())
-  vehicleId        String
-  vehicle          Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  fuelAmount       Float    
-  odometerReading  Float    
-  refuelDate       DateTime @default(now()) 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id              String   @id @default(uuid())
+  vehicleId       String
+  vehicle         Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  fuelAmount      Float
+  odometerReading Float
+  refuelDate      DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model VehicleDriver {
