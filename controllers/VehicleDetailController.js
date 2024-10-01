@@ -152,7 +152,7 @@ async function getVehicleCount(req, res) {
     const heavyVehicle = await global.prisma.vehicle.count({
       where: {
         vehicleType: {
-          in: ["Ton25", "ALS", "TATRA", "WB", "Bus"],
+          in: ["Tom25", "ALS", "TATRA", "WB", "BUS"],
         },
       },
     });
