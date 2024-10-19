@@ -145,7 +145,7 @@ async function getVehicleCount(req, res) {
     const fourWheeler = await global.prisma.vehicle.count({
       where: {
         vehicleType: {
-          in: ["Safari", "Scorpio"],
+          in: ["Safari", "Scorpio", "Gypsy"],
         },
       },
     });
