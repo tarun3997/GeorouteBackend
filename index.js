@@ -17,4 +17,4 @@ app.use('/api/update', require('./routes/UpdateRoutes'))
 app.use('/api', require('./routes/DriverRoutes'))
 app.use('/api', require('./routes/NotificationRoutes'))
 
-app.listen(process.env.PORT,() => console.log(`server is started ${process.env.PORT}`))
+app.listen(process.env.PORT,() => console.log(`server is started ${process.env.PORT}`)) 

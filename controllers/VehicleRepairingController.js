@@ -9,7 +9,7 @@ async function handleNewVehicleRepairing(req, res) {
             description,
             damagePart
           }
-        }),
+        }), 
         global.prisma.vehicle.update({
           where: { id: vehicleId },
           data: { isVehicleUnderRepairing: true }
