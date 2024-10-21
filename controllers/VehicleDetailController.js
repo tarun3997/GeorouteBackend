@@ -14,6 +14,7 @@ async function handelVehicleDetail(req, res) {
       vehicleNumber,
       vehicleType,
       vehicleRunKM,
+      fuelAmount,
       vehicleFuelType,
       vehicleKMLimit,
       driverName,
@@ -40,9 +41,16 @@ async function handelVehicleDetail(req, res) {
             name: driverName,
           },
         },
+        fuelLogs: {
+          create: {
+            fuelAmount : fuelAmount,
+            odometerReading: vehicleRunKM,
+          }
+        },
       },
       include: {
         vehicleDriver: true,
+        fuelLogs: true,
       },
     });
     console.log(vehicle)
@@ -63,6 +71,13 @@ async function getVehicleDetails(req, res) {
         vehicleFuelType: true,
         vehicleKMLimit: true,
         isVehicleUnderRepairing: true,
+        mileage: true,
+        fuelLogs: {
+          select: {
+            fuelAmount: true,
+            refuelDate: true,
+          }
+        },
         vehicleLocation: {
           orderBy: {
             time: "desc",
@@ -207,6 +222,7 @@ async function getVehicleDetailById(req, res) {
         isVehicleUnderRepairing: true,
         averageSpeed: true,
         maxSpeed: true,
+        mileage:true,
         RepairingVehicle:{
           select:{
             vehicleReason: true,
@@ -374,11 +390,28 @@ async function recordFuelRefill(req, res) {
   }
 }
 
+async function deleteVehicle(req, res) {
+  try {
+      const { id } = req.params; 
+
+      const deletedVehicle = await global.prisma.vehicle.delete({
+          where: {
+              id: id,
+          },
+      });
+      res.status(200).json({ message: 'Vehicle and all related entries deleted successfully', deletedVehicle });
+  } catch (error) {
+      console.error(error); 
+      res.status(500).json({ message: 'An error occurred while deleting the vehicle', error: error.message });
+  }
+}
+
 
 module.exports = {
   handelVehicleDetail,
   getVehicleDetails,
   getVehicleCount,
   getVehicleDetailById,
-  recordFuelRefill
+  recordFuelRefill,
+  deleteVehicle
 };

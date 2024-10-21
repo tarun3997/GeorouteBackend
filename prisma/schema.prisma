@@ -8,11 +8,17 @@ generator client {
   provider = "prisma-client-js"
 }
 
+ // datasource db {
+ // provider  = "postgresql"
+ // url       = env("DATABASE_URL")
+ // directUrl = env("DIRECT_URL")
+// }
+
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
+
 
 model Admin {
   id                 String               @id @default(uuid())
@@ -38,7 +44,7 @@ model Vehicle {
   id                      String             @id @unique
   vehicleNumber           String             @unique
   vehicleType             VehicleType
-  vehicleRunKM            Int
+  vehicleRunKM            Float
   vehicleFuelType         FuelType
   vehicleKMLimit          Int
   vehicleNewKm            Float              @default(0.0)
@@ -52,7 +58,7 @@ model Vehicle {
   vehicleDriver           VehicleDriver?
   vehicleLocation         VehicleLocation[]
   fuelLogs                FuelLog[]
-  mileage                 Float
+  mileage                 Float              @default(0.0)
   createdAt               DateTime           @default(now())
   updatedAt               DateTime           @updatedAt
   Notification            Notification[]
