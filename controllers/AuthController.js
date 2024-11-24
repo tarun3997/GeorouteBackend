@@ -6,6 +6,7 @@ const { prisma } = require("../db");
 async function handelLogin(req, res) {
   try {
     const { email, password, fcmToken } = req.body;
+    console.log(email, password, fcmToken)
     const user = await prisma.admin.findUnique({
       where: {
         email: email,
